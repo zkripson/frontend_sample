@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZK Battleship</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f8fa;
+            color: #333;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .board-container {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(10, 30px);
+            gap: 2px;
+            margin-top: 10px;
+        }
+        
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background-color: #f0f8ff;
+            transition: background-color 0.2s;
+        }
+        
+        .cell:hover {
+            background-color: #e1f0fa;
+        }
+        
+        .ship {
+            background-color: #3498db;
+        }
+        
+        .hit {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .miss {
+            background-color: #7f8c8d;
+            color: white;
+        }
+        
+        .selected {
+            background-color: #2ecc71;
+        }
+        
+        .control-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .status {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .logs {
+            height: 200px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        
+        .tab-container {
+            margin-top: 20px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab-button {
+            padding: 10px 15px;
+            background-color: #f1f1f1;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        
+        .tab-button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ZK Battleship Test Application</h1>
+        
+        <div class="status" id="connection-status">
+            Wallet not connected
+        </div>
+        
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" data-tab="setup">Setup Game</button>
+                <button class="tab-button" data-tab="play">Play Game</button>
+                <button class="tab-button" data-tab="debug">Debug</button>
+            </div>
+            
+            <div class="tab-content active" id="setup-tab">
+                <h2>Game Setup</h2>
+                
+                <button id="connect-wallet-btn">Connect Wallet</button>
+                
+                <div id="game-creation" style="display: none;">
+                    <h3>Create New Game</h3>
+                    <input type="text" id="opponent-address" placeholder="Opponent Address (0x...)" />
+                    <button id="create-game-btn">Create Game</button>
+                    
+                    <h3>Join Existing Game</h3>
+                    <input type="number" id="game-id" placeholder="Game ID" />
+                    <button id="join-game-btn">Join Game</button>
+                    
+                    <div class="status" id="game-status">
+                        No active game
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="play-tab">
+                <h2>Game Play</h2>
+                
+                <div class="game-container">
+                    <div class="board-container">
+                        <h3>My Board</h3>
+                        <div class="status" id="my-board-status">
+                            Place your ships
+                        </div>
+                        <button id="random-board-btn">Generate Random Board</button>
+                        <button id="submit-board-btn" disabled>Submit Board with ZK Proof</button>
+                        <div class="board" id="my-board"></div>
+                    </div>
+                    
+                    <div class="board-container">
+                        <h3>Opponent's Board</h3>
+                        <div class="status" id="opponent-board-status">
+                            Waiting for game to start
+                        </div>
+                        <div class="board" id="opponent-board"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="debug-tab">
+                <h2>Debug Information</h2>
+                
+                <h3>Event Logs</h3>
+                <div class="logs" id="event-logs"></div>
+                
+                <h3>ZK Proof Testing</h3>
+                <button id="test-board-proof-btn">Test Board Proof</button>
+                <button id="test-shot-proof-btn">Test Shot Proof</button>
+                <button id="test-endgame-proof-btn">Test Endgame Proof</button>
+                
+                <h3>Contract State</h3>
+                <button id="refresh-state-btn">Refresh Contract State</button>
+                <div class="status" id="contract-state">
+                    No contract state available
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load ethers.js -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js" type="application/javascript"></script>
+    
+    <!-- Load our game logic -->
+    <script type="module">
+        // Constants
+        const BOARD_SIZE = 10;
+        const SHIP_SIZES = [5, 4, 3, 3, 2];
+        
+        // Contract addresses (from config)
+        const CONTRACT_ADDRESSES = {
+            zkVerifier: "0xf463Fc86FfC9eea4e4eF43632D7642a9d45Ba775",
+            gameImplementation: "0x30874dadcB172CA21706Bd64d9181794CbF3A468", 
+            gameFactory: "0x75d67fc7a0d77128416d2D55b00c857e780999d7",
+            shipToken: "0x8dA0a30376858082A9c21c06416c89C7979bAB88"
+        };
+        
+        // Backend API config
+        const BACKEND_CONFIG = {
+            apiUrl: "https://zk-battleship-backend.nj-345.workers.dev/",
+            wsUrl: "wss://zk-battleship-backend.nj-345.workers.dev/"
+        };
+        
+        // Minimal ABIs for our contracts
+        const GAME_FACTORY_ABI = [
+            "function createGame(address opponent) external returns (uint256 gameId)",
+            "function games(uint256) view returns (address)",
+            "function getPlayerGames(address player) external view returns (uint256[] memory)",
+            "function joinGame(uint256 gameId) external",
+            "event GameCreated(uint256 indexed gameId, address indexed gameAddress, address player1, address player2)"
+        ];
+        
+        const BATTLESHIP_GAME_ABI = [
+            "function submitBoard(bytes32 boardCommitment, bytes calldata zkProof) external",
+            "function makeShot(uint8 x, uint8 y) external",
+            "function submitShotResult(uint8 x, uint8 y, bool isHit, bytes calldata zkProof) external",
+            "function verifyGameEnd(bytes32 boardCommitment, bytes calldata zkProof) external",
+            "function state() external view returns (uint8)",
+            "function player1() external view returns (address)",
+            "function player2() external view returns (address)",
+            "function currentTurn() external view returns (address)",
+            "event ShotFired(address indexed shooter, uint8 x, uint8 y)",
+            "event ShotResult(address indexed target, uint8 x, uint8 y, bool hit)",
+            "event GameStateChanged(uint8 newState)"
+        ];
+        
+        // Global variables
+        let provider;
+        let signer;
+        let currentAccount;
+        let factoryContract;
+        let gameContract;
+        let activeGameId;
+        let gameAddress;
+        let gameState = 0; // 0: Created, 1: Setup, 2: Active, 3: Completed, 4: Cancelled
+        let isMyTurn = false;
+        let board = null;
+        let salt = null;
+        let shotMap = { hits: [], misses: [] };
+        let wsConnection = null;
+        
+        // DOM Elements
+        const connectWalletBtn = document.getElementById('connect-wallet-btn');
+        const createGameBtn = document.getElementById('create-game-btn');
+        const joinGameBtn = document.getElementById('join-game-btn');
+        const randomBoardBtn = document.getElementById('random-board-btn');
+        const submitBoardBtn = document.getElementById('submit-board-btn');
+        const testBoardProofBtn = document.getElementById('test-board-proof-btn');
+        const testShotProofBtn = document.getElementById('test-shot-proof-btn');
+        const testEndgameProofBtn = document.getElementById('test-endgame-proof-btn');
+        const refreshStateBtn = document.getElementById('refresh-state-btn');
+        
+        const opponentAddressInput = document.getElementById('opponent-address');
+        const gameIdInput = document.getElementById('game-id');
+        
+        const connectionStatus = document.getElementById('connection-status');
+        const gameStatus = document.getElementById('game-status');
+        const myBoardStatus = document.getElementById('my-board-status');
+        const opponentBoardStatus = document.getElementById('opponent-board-status');
+        const contractState = document.getElementById('contract-state');
+        
+        const myBoardElement = document.getElementById('my-board');
+        const opponentBoardElement = document.getElementById('opponent-board');
+        const eventLogs = document.getElementById('event-logs');
+        
+        // Setup tab buttons
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.getAttribute('data-tab');
+                
+                // Remove active class from all buttons and tabs
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(tab => tab.classList.remove('active'));
+                
+                // Add active class to current button and tab
+                button.classList.add('active');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Board management functions
+        function createEmptyBoard() {
+            return {
+                ships: [],
+                grid: Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(0))
+            };
+        }
+        
+        function generateRandomBoard() {
+            const ships = [];
+            const tempGrid = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(0));
+            
+            // Place each ship
+            for (const size of SHIP_SIZES) {
+                let placed = false;
+                let attempts = 0;
+                const maxAttempts = 100;
+                
+                while (!placed && attempts < maxAttempts) {
+                    attempts++;
+                    
+                    // Random position and orientation
+                    const horizontal = Math.random() > 0.5;
+                    const maxX = horizontal ? BOARD_SIZE - size : BOARD_SIZE - 1;
+                    const maxY = horizontal ? BOARD_SIZE - 1 : BOARD_SIZE - size;
+                    
+                    const x = Math.floor(Math.random() * (maxX + 1));
+                    const y = Math.floor(Math.random() * (maxY + 1));
+                    
+                    // Check if placement is valid
+                    let valid = true;
+                    
+                    // Check cells and surrounding cells
+                    for (let i = -1; i <= size; i++) {
+                        for (let j = -1; j <= 1; j++) {
+                            const checkX = horizontal ? x + i : x + j;
+                            const checkY = horizontal ? y + j : y + i;
+                            
+                            // Skip out of bounds checks
+                            if (checkX < 0 || checkX >= BOARD_SIZE || checkY < 0 || checkY >= BOARD_SIZE) {
+                                continue;
+                            }
+                            
+                            // If this is part of the ship (not surrounding), ignore edge cases
+                            if ((horizontal && i >= 0 && i < size && j === 0) ||
+                                (!horizontal && i >= 0 && i < size && j === 0)) {
+                                // Only check the actual ship cell
+                                if (tempGrid[checkY][checkX] !== 0) {
+                                    valid = false;
+                                    break;
+                                }
+                            } else {
+                                // For surrounding cells, check if they contain a ship
+                                if (tempGrid[checkY][checkX] !== 0) {
+                                    valid = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!valid) break;
+                    }
+                    
+                    if (valid) {
+                        // Place the ship
+                        const ship = { size, x, y, horizontal };
+                        ships.push(ship);
+                        
+                        // Update temp grid
+                        for (let i = 0; i < size; i++) {
+                            const placeX = horizontal ? x + i : x;
+                            const placeY = horizontal ? y : y + i;
+                            tempGrid[placeY][placeX] = 1;
+                        }
+                        
+                        placed = true;
+                    }
+                }
+                
+                if (!placed) {
+                    // If we couldn't place a ship after max attempts, start over
+                    return generateRandomBoard();
+                }
+            }
+            
+            return createBoardFromShips(ships);
+        }
+        
+        function createBoardFromShips(ships) {
+            // Initialize empty grid
+            const grid = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(0));
+            
+            // Place ships on grid
+            for (const ship of ships) {
+                for (let i = 0; i < ship.size; i++) {
+                    const x = ship.horizontal ? ship.x + i : ship.x;
+                    const y = ship.horizontal ? ship.y : ship.y + i;
+                    
+                    // Check bounds
+                    if (x >= BOARD_SIZE || y >= BOARD_SIZE) {
+                        throw new Error(`Ship placement out of bounds: (${x}, ${y})`);
+                    }
+                    
+                    // Check overlap
+                    if (grid[y][x] !== 0) {
+                        throw new Error(`Ship overlap at (${x}, ${y})`);
+                    }
+                    
+                    grid[y][x] = 1;
+                }
+            }
+            
+            return { ships, grid };
+        }
+        
+        function renderBoard(boardElement, boardData, isOpponent = false) {
+            // Clear the board
+            boardElement.innerHTML = '';
+            
+            // Create cells
+            for (let y = 0; y < BOARD_SIZE; y++) {
+                for (let x = 0; x < BOARD_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    
+                    // If this is our board and there's a ship, mark it
+                    if (!isOpponent && boardData && boardData.grid[y][x] === 1) {
+                        cell.classList.add('ship');
+                    }
+                    
+                    // If this is opponent's board, add click handler for shots
+                    if (isOpponent) {
+                        cell.addEventListener('click', () => {
+                            if (gameState === 2 && isMyTurn) {
+                                makeShot(x, y);
+                            }
+                        });
+                    }
+                    
+                    boardElement.appendChild(cell);
+                }
+            }
+            
+            // Mark hits and misses
+            if (isOpponent) {
+                // Mark our shots on opponent's board
+                for (const hit of shotMap.hits) {
+                    const index = hit.y * BOARD_SIZE + hit.x;
+                    const cell = boardElement.children[index];
+                    cell.classList.add('hit');
+                    cell.textContent = '✓';
+                }
+                
+                for (const miss of shotMap.misses) {
+                    const index = miss.y * BOARD_SIZE + miss.x;
+                    const cell = boardElement.children[index];
+                    cell.classList.add('miss');
+                    cell.textContent = '✗';
+                }
+            } else if (boardData) {
+                // Mark opponent's shots on our board
+                // This would be populated from contract events
+            }
+        }
+        
+        // Connect to wallet
+        async function connectWallet() {
+            try {
+                // Check if ethereum is available
+                if (window.ethereum) {
+                    // Update status
+                    connectionStatus.textContent = "Connecting...";
+                    connectionStatus.className = "status info";
+                    
+                    // Create provider and request accounts
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    await provider.send("eth_requestAccounts", []);
+                    
+                    // Get signer and current account
+                    signer = provider.getSigner();
+                    currentAccount = await signer.getAddress();
+                    
+                    // Update UI
+                    connectionStatus.textContent = `Connected: ${currentAccount}`;
+                    connectionStatus.className = "status success";
+                    document.getElementById('game-creation').style.display = 'block';
+                    
+                    // Initialize contracts
+                    factoryContract = new ethers.Contract(
+                        CONTRACT_ADDRESSES.gameFactory,
+                        GAME_FACTORY_ABI,
+                        signer
+                    );
+                    
+                    // Log success
+                    logEvent("Wallet connected: " + currentAccount);
+                    
+                    // Check for active games
+                    await checkActiveGames();
+                } else {
+                    connectionStatus.textContent = "Please install MetaMask!";
+                    connectionStatus.className = "status error";
+                    logEvent("Ethereum provider not found", "error");
+                }
+            } catch (error) {
+                connectionStatus.textContent = "Connection failed: " + error.message;
+                connectionStatus.className = "status error";
+                logEvent("Wallet connection error: " + error.message, "error");
+            }
+        }
+        
+        // Check for active games
+        async function checkActiveGames() {
+            try {
+                if (!factoryContract || !currentAccount) return;
+                
+                // Get player's games from contract
+                const activeGames = await factoryContract.getPlayerGames(currentAccount);
+                
+                if (activeGames.length > 0) {
+                    logEvent(`Found ${activeGames.length} active games`);
+                    
+                    // For simplicity, load the most recent game
+                    const latestGameId = activeGames[activeGames.length - 1];
+                    await loadGame(latestGameId);
+                } else {
+                    logEvent("No active games found");
+                }
+            } catch (error) {
+                logEvent("Error checking active games: " + error.message, "error");
+            }
+        }
+        
+        // Create a new game
+        async function createGame() {
+            try {
+                const opponent = opponentAddressInput.value;
+                
+                if (!ethers.utils.isAddress(opponent)) {
+                    gameStatus.textContent = "Please enter a valid Ethereum address";
+                    gameStatus.className = "status error";
+                    return;
+                }
+                
+                // Update status
+                gameStatus.textContent = "Creating game...";
+                gameStatus.className = "status info";
+                
+                // Call contract to create game
+                logEvent(`Creating game with opponent: ${opponent}`);
+                const tx = await factoryContract.createGame(opponent);
+                logEvent(`Transaction submitted: ${tx.hash}`);
+                
+                // Wait for transaction to be mined
+                const receipt = await tx.wait();
+                logEvent(`Transaction confirmed: ${receipt.transactionHash}`);
+                
+                // Parse events to get game ID
+                const event = receipt.events.find(e => e.event === 'GameCreated');
+                if (event) {
+                    const gameId = event.args.gameId.toNumber();
+                    const gameAddr = event.args.gameAddress;
+                    
+                    logEvent(`Game created with ID: ${gameId}, Address: ${gameAddr}`);
+                    
+                    // Load the created game
+                    await loadGame(gameId);
+                } else {
+                    throw new Error("GameCreated event not found in transaction receipt");
+                }
+            } catch (error) {
+                gameStatus.textContent = "Game creation failed: " + error.message;
+                gameStatus.className = "status error";
+                logEvent("Game creation error: " + error.message, "error");
+            }
+        }
+        
+        // Join an existing game
+        async function joinGame() {
+            try {
+                const gameId = parseInt(gameIdInput.value);
+                
+                if (isNaN(gameId) || gameId <= 0) {
+                    gameStatus.textContent = "Please enter a valid game ID";
+                    gameStatus.className = "status error";
+                    return;
+                }
+                
+                // Update status
+                gameStatus.textContent = "Joining game...";
+                gameStatus.className = "status info";
+                
+                // Call contract to join game
+                logEvent(`Joining game with ID: ${gameId}`);
+                const tx = await factoryContract.joinGame(gameId);
+                logEvent(`Transaction submitted: ${tx.hash}`);
+                
+                // Wait for transaction to be mined
+                const receipt = await tx.wait();
+                logEvent(`Transaction confirmed: ${receipt.transactionHash}`);
+                
+                // Load the joined game
+                await loadGame(gameId);
+            } catch (error) {
+                gameStatus.textContent = "Game joining failed: " + error.message;
+                gameStatus.className = "status error";
+                logEvent("Game joining error: " + error.message, "error");
+            }
+        }
+        
+        // Load an existing game
+        async function loadGame(gameId) {
+            try {
+                if (!factoryContract) return;
+                
+                // Get game address from factory
+                gameAddress = await factoryContract.games(gameId);
+                
+                if (gameAddress === ethers.constants.AddressZero) {
+                    throw new Error(`Game with ID ${gameId} not found`);
+                }
+                
+                // Initialize game contract
+                gameContract = new ethers.Contract(
+                    gameAddress,
+                    BATTLESHIP_GAME_ABI,
+                    signer
+                );
+                
+                // Store game ID
+                activeGameId = gameId;
+                
+                // Fetch game information
+                const [
+                    player1,
+                    player2,
+                    gameStateVal,
+                    currentTurn
+                ] = await Promise.all([
+                    gameContract.player1(),
+                    gameContract.player2(),
+                    gameContract.state(),
+                    gameContract.currentTurn()
+                ]);
+                
+                // Update game state
+                gameState = gameStateVal;
+                isMyTurn = currentTurn && currentTurn.toLowerCase() === currentAccount.toLowerCase();
+                
+                // Update UI
+                gameStatus.textContent = `Game #${gameId} loaded: ${getStateString(gameState)}`;
+                gameStatus.className = "status success";
+                
+                // Initialize boards
+                renderBoard(myBoardElement, board);
+                renderBoard(opponentBoardElement, null, true);
+                
+                // Setup event listeners
+                setupGameEvents();
+                
+                // Switch to play tab
+                document.querySelector('[data-tab="play"]').click();
+                
+                // Update game status based on state
+                updateGameStatus(player1, player2, gameState, currentTurn);
+                
+                logEvent(`Game loaded: ID ${gameId}, Address: ${gameAddress}`);
+                
+                // Connect to backend WebSocket
+                connectToGameSession(gameId);
+            } catch (error) {
+                gameStatus.textContent = "Failed to load game: " + error.message;
+                gameStatus.className = "status error";
+                logEvent("Game loading error: " + error.message, "error");
+            }
+        }
+        
+        // Setup game event listeners
+        function setupGameEvents() {
+            if (!gameContract) return;
+            
+            // Listen for ShotFired events
+            gameContract.on("ShotFired", (shooter, x, y) => {
+                const shooterAddress = shooter.toLowerCase();
+                const isOpponentShot = shooterAddress !== currentAccount.toLowerCase();
+                
+                if (isOpponentShot) {
+                    logEvent(`Opponent fired shot at (${x}, ${y})`);
+                    
+                    // If we have a board, process the shot
+                    if (board) {
+                        processShotAtMyBoard(x, y);
+                    }
+                } else {
+                    logEvent(`You fired shot at (${x}, ${y})`);
+                }
+            });
+            
+            // Listen for ShotResult events
+            gameContract.on("ShotResult", (target, x, y, hit) => {
+                const targetAddress = target.toLowerCase();
+                const isMyResult = targetAddress === currentAccount.toLowerCase();
+                
+                if (isMyResult) {
+                    logEvent(`Your board: Shot at (${x}, ${y}) - ${hit ? "HIT" : "MISS"}`);
+                    
+                    // Update our board display
+                    const index = y * BOARD_SIZE + x;
+                    const cell = myBoardElement.children[index];
+                    if (cell) {
+                        cell.classList.add(hit ? 'hit' : 'miss');
+                        cell.textContent = hit ? '✓' : '✗';
+                    }
+                } else {
+                    logEvent(`Opponent's board: Shot at (${x}, ${y}) - ${hit ? "HIT" : "MISS"}`);
+                    
+                    // Update our shot map
+                    if (hit) {
+                        shotMap.hits.push({ x, y });
+                    } else {
+                        shotMap.misses.push({ x, y });
+                    }
+                    
+                    // Update opponent's board display
+                    renderBoard(opponentBoardElement, null, true);
+                    
+                    // Check if we won
+                    if (shotMap.hits.length >= 17) { // 17 total ship cells
+                        logEvent("All opponent ships sunk! You win!");
+                        
+                        // TODO: Generate game end proof and verify game end
+                    }
+                }
+                
+                // Check if turn has changed
+                refreshGameState();
+            });
+            
+            // Listen for GameStateChanged events
+            gameContract.on("GameStateChanged", (newState) => {
+                gameState = newState;
+                logEvent(`Game state changed to: ${getStateString(newState)}`);
+                
+                // Update game status
+                refreshGameState();
+            });
+        }
+        
+        // Connect to game session via WebSocket
+        function connectToGameSession(gameId) {
+            try {
+                // Close existing connection if any
+                if (wsConnection) {
+                    wsConnection.close();
+                }
+                
+                // Connect to WebSocket (for real implementation)
+                // wsConnection = new WebSocket(`${BACKEND_CONFIG.wsUrl}/game/${gameId}`);
+                
+                // For testing purposes, simulate WebSocket with events
+                wsConnection = {
+                    close: () => { console.log("WebSocket closed"); },
+                    send: (data) => { console.log("WebSocket message sent:", data); }
+                };
+                
+                logEvent(`Connected to game session for game #${gameId}`);
+            } catch (error) {
+                logEvent("WebSocket connection error: " + error.message, "error");
+            }
+        }
+        
+        // Process a shot at our board
+        async function processShotAtMyBoard(x, y) {
+            try {
+                if (!board) return;
+                
+                // Check if the shot hit a ship
+                const isHit = board.grid[y][x] === 1;
+                logEvent(`Processing opponent's shot at (${x}, ${y}): ${isHit ? "HIT" : "MISS"}`);
+                
+                // Mark the shot on our board
+                const index = y * BOARD_SIZE + x;
+                const cell = myBoardElement.children[index];
+                if (cell) {
+                    cell.classList.add(isHit ? 'hit' : 'miss');
+                    cell.textContent = isHit ? '✓' : '✗';
+                }
+                
+                // Generate ZK proof for the shot result
+                myBoardStatus.textContent = "Generating shot proof...";
+                myBoardStatus.className = "status info";
+                
+                // For testing, we'll use mock proofs
+                const mockProof = "0x" + Array(64).fill("0").join("");
+                
+                // Submit the result with proof
+                myBoardStatus.textContent = "Submitting shot result...";
+                
+                const tx = await gameContract.submitShotResult(x, y, isHit, mockProof);
+                logEvent(`Shot result transaction submitted: ${tx.hash}`);
+                
+                const receipt = await tx.wait();
+                logEvent(`Shot result confirmed: ${receipt.transactionHash}`);
+                
+                myBoardStatus.textContent = "Shot result submitted";
+                myBoardStatus.className = "status success";
+            } catch (error) {
+                myBoardStatus.textContent = "Failed to submit shot result: " + error.message;
+                myBoardStatus.className = "status error";
+                logEvent("Shot result error: " + error.message, "error");
+            }
+        }
+        
+        // Make a shot at opponent's board
+        async function makeShot(x, y) {
+            try {
+                if (!gameContract) return;
+                if (gameState !== 2 || !isMyTurn) return;
+                
+                // Check if we've already shot at this position
+                for (const hit of shotMap.hits) {
+                    if (hit.x === x && hit.y === y) return;
+                }
+                for (const miss of shotMap.misses) {
+                    if (miss.x === x && miss.y === y) return;
+                }
+                
+                // Update status
+                opponentBoardStatus.textContent = `Firing shot at (${x}, ${y})...`;
+                opponentBoardStatus.className = "status info";
+                
+                // Mark the cell as targeted
+                const index = y * BOARD_SIZE + x;
+                const cell = opponentBoardElement.children[index];
+                if (cell) {
+                    cell.classList.add('selected');
+                }
+                
+                // Submit the shot
+                logEvent(`Making shot at (${x}, ${y})`);
+                const tx = await gameContract.makeShot(x, y);
+                logEvent(`Shot transaction submitted: ${tx.hash}`);
+                
+                // Wait for confirmation
+                const receipt = await tx.wait();
+                logEvent(`Shot confirmed: ${receipt.transactionHash}`);
+                
+                // Remove selected class (will be replaced with hit/miss when result comes)
+                if (cell) {
+                    cell.classList.remove('selected');
+                }
+                
+                // Update status
+                opponentBoardStatus.textContent = "Shot fired! Waiting for result...";
+                
+                // The result will come through the ShotResult event
+            } catch (error) {
+                opponentBoardStatus.textContent = "Shot failed: " + error.message;
+                opponentBoardStatus.className = "status error";
+                logEvent("Shot error: " + error.message, "error");
+                
+                // Remove selected class on failure
+                const index = y * BOARD_SIZE + x;
+                const cell = opponentBoardElement.children[index];
+                if (cell) {
+                    cell.classList.remove('selected');
+                }
+            }
+        }
+        
+        // Generate a random board
+        async function generateRandomBoardAndCommitment() {
+            try {
+                // Generate random board
+                board = generateRandomBoard();
+                logEvent("Random board generated");
+                
+                // Generate random salt for the commitment
+                salt = ethers.utils.hexlify(ethers.utils.randomBytes(16)).slice(2);
+                logEvent("Generated salt for board commitment");
+                
+                // Generate board commitment (simple in this test)
+                const boardString = JSON.stringify(board.grid);
+                const commitment = ethers.utils.keccak256(
+                    ethers.utils.defaultAbiCoder.encode(
+                        ['string', 'string'],
+                        [boardString, salt]
+                    )
+                );
+                logEvent(`Board commitment generated: ${commitment.substring(0, 10)}...`);
+                
+                // Update UI
+                renderBoard(myBoardElement, board);
+                myBoardStatus.textContent = "Board generated - ready to submit";
+                myBoardStatus.className = "status success";
+                
+                // Enable submit button
+                submitBoardBtn.disabled = false;
+            } catch (error) {
+                myBoardStatus.textContent = "Failed to generate board: " + error.message;
+                myBoardStatus.className = "status error";
+                logEvent("Board generation error: " + error.message, "error");
+            }
+        }
+        
+        // Submit board with ZK proof
+        async function submitBoard() {
+            try {
+                if (!gameContract || !board || !salt) {
+                    throw new Error("Board not generated");
+                }
+                
+                // Update status
+                myBoardStatus.textContent = "Generating board proof...";
+                myBoardStatus.className = "status info";
+                submitBoardBtn.disabled = true;
+                
+                // Generate board commitment (simple in this test)
+                const boardString = JSON.stringify(board.grid);
+                const commitment = ethers.utils.keccak256(
+                    ethers.utils.defaultAbiCoder.encode(
+                        ['string', 'string'],
+                        [boardString, salt]
+                    )
+                );
+                
+                // For testing, we'll use mock proofs
+                const mockProof = "0x" + Array(64).fill("0").join("");
+                
+                // Submit board with proof
+                myBoardStatus.textContent = "Submitting board...";
+                logEvent("Submitting board with ZK proof");
+                
+                const tx = await gameContract.submitBoard(commitment, mockProof);
+                logEvent(`Board submission transaction: ${tx.hash}`);
+                
+                // Wait for confirmation
+                const receipt = await tx.wait();
+                logEvent(`Board submission confirmed: ${receipt.transactionHash}`);
+                
+                // Update status
+                myBoardStatus.textContent = "Board submitted successfully";
+                myBoardStatus.className = "status success";
+                
+                // Refresh game state to update UI
+                refreshGameState();
+            } catch (error) {
+                myBoardStatus.textContent = "Failed to submit board: " + error.message;
+                myBoardStatus.className = "status error";
+                logEvent("Board submission error: " + error.message, "error");
+                submitBoardBtn.disabled = false;
+            }
+        }
+        
+        // Testing functions for ZK proofs
+        async function testBoardProof() {
+            try {
+                if (!board || !salt) {
+                    board = generateRandomBoard();
+                    salt = ethers.utils.hexlify(ethers.utils.randomBytes(16)).slice(2);
+                    renderBoard(myBoardElement, board);
+                }
+                
+                logEvent("Testing board proof generation...");
+                
+                // Board commitment (using actual code from your implementation)
+                const boardString = JSON.stringify(board.grid.flat().join(''));
+                const commitment = ethers.utils.keccak256(
+                    ethers.utils.solidityPack(
+                        ['string', 'bytes32'],
+                        [boardString, ethers.utils.formatBytes32String(salt)]
+                    )
+                );
+                
+                logEvent(`Board commitment: ${commitment}`);
+                
+                // In a real implementation, we would call:
+                // const proof = await generateBoardProof(board, salt);
+                
+                // For testing, generate a mock proof
+                const mockProof = "0x" + Array(64).fill("0").join("");
+                logEvent("Generated mock proof: " + mockProof.substring(0, 10) + "...");
+                
+                contractState.textContent = `Board commitment: ${commitment.substring(0, 10)}...\nProof: ${mockProof.substring(0, 10)}...`;
+                contractState.className = "status success";
+            } catch (error) {
+                logEvent("Board proof test error: " + error.message, "error");
+                contractState.textContent = "Board proof test failed: " + error.message;
+                contractState.className = "status error";
+            }
+        }
+        
+        async function testShotProof() {
+            try {
+                if (!board || !salt) {
+                    board = generateRandomBoard();
+                    salt = ethers.utils.hexlify(ethers.utils.randomBytes(16)).slice(2);
+                    renderBoard(myBoardElement, board);
+                }
+                
+                // Pick a random cell
+                const x = Math.floor(Math.random() * BOARD_SIZE);
+                const y = Math.floor(Math.random() * BOARD_SIZE);
+                
+                // Check if it's a hit
+                const isHit = board.grid[y][x] === 1;
+                
+                logEvent(`Testing shot proof for (${x}, ${y}): ${isHit ? "HIT" : "MISS"}`);
+                
+                // In a real implementation, we would call:
+                // const proof = await generateShotProof(board, x, y, isHit, salt);
+                
+                // For testing, generate a mock proof
+                const mockProof = "0x" + Array(64).fill("0").join("");
+                logEvent("Generated mock proof: " + mockProof.substring(0, 10) + "...");
+                
+                contractState.textContent = `Shot at (${x}, ${y}): ${isHit ? "HIT" : "MISS"}\nProof: ${mockProof.substring(0, 10)}...`;
+                contractState.className = "status success";
+            } catch (error) {
+                logEvent("Shot proof test error: " + error.message, "error");
+                contractState.textContent = "Shot proof test failed: " + error.message;
+                contractState.className = "status error";
+            }
+        }
+        
+        async function testEndgameProof() {
+            try {
+                if (!board || !salt) {
+                    board = generateRandomBoard();
+                    salt = ethers.utils.hexlify(ethers.utils.randomBytes(16)).slice(2);
+                    renderBoard(myBoardElement, board);
+                }
+                
+                // Create a complete shot map (all ships hit)
+                const completeShotMap = { hits: [], misses: [] };
+                
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    for (let x = 0; x < BOARD_SIZE; x++) {
+                        if (board.grid[y][x] === 1) {
+                            completeShotMap.hits.push({x, y});
+                        } else {
+                            completeShotMap.misses.push({x, y});
+                        }
+                    }
+                }
+                
+                logEvent(`Testing endgame proof with ${completeShotMap.hits.length} hits`);
+                
+                // In a real implementation, we would call:
+                // const proof = await generateGameEndProof(board, completeShotMap, salt);
+                
+                // For testing, generate a mock proof
+                const mockProof = "0x" + Array(64).fill("0").join("");
+                logEvent("Generated mock proof: " + mockProof.substring(0, 10) + "...");
+                
+                contractState.textContent = `Endgame proof for ${completeShotMap.hits.length} hits\nProof: ${mockProof.substring(0, 10)}...`;
+                contractState.className = "status success";
+            } catch (error) {
+                logEvent("Endgame proof test error: " + error.message, "error");
+                contractState.textContent = "Endgame proof test failed: " + error.message;
+                contractState.className = "status error";
+            }
+        }
+        
+        // Refresh game state
+        async function refreshGameState() {
+            try {
+                if (!gameContract) return;
+                
+                // Fetch game state
+                const [
+                    player1,
+                    player2,
+                    gameStateVal,
+                    currentTurn
+                ] = await Promise.all([
+                    gameContract.player1(),
+                    gameContract.player2(),
+                    gameContract.state(),
+                    gameContract.currentTurn()
+                ]);
+                
+                // Update game state
+                gameState = gameStateVal;
+                isMyTurn = currentTurn && currentTurn.toLowerCase() === currentAccount.toLowerCase();
+                
+                // Update game status
+                updateGameStatus(player1, player2, gameState, currentTurn);
+                
+                contractState.textContent = `Game State: ${getStateString(gameState)}\nPlayer 1: ${player1}\nPlayer 2: ${player2}\nCurrent Turn: ${currentTurn || "N/A"}`;
+                contractState.className = "status info";
+            } catch (error) {
+                logEvent("Refresh state error: " + error.message, "error");
+            }
+        }
+        
+        // Update game status display
+        function updateGameStatus(player1, player2, state, currentTurn) {
+            const isPlayer1 = currentAccount.toLowerCase() === player1.toLowerCase();
+            const playerRole = isPlayer1 ? "Player 1" : "Player 2";
+            const opponent = isPlayer1 ? player2 : player1;
+            
+            gameStatus.textContent = `Game #${activeGameId}: ${getStateString(state)} - You are ${playerRole}, Opponent: ${opponent.substring(0, 6)}...`;
+            
+            switch (state) {
+                case 0: // Created
+                    myBoardStatus.textContent = "Game created - Generate and submit your board";
+                    myBoardStatus.className = "status info";
+                    opponentBoardStatus.textContent = "Waiting for game setup";
+                    opponentBoardStatus.className = "status info";
+                    break;
+                    
+                case 1: // Setup
+                    myBoardStatus.textContent = "Setup phase - Waiting for both players to submit boards";
+                    myBoardStatus.className = "status info";
+                    opponentBoardStatus.textContent = "Waiting for game setup";
+                    opponentBoardStatus.className = "status info";
+                    break;
+                    
+                case 2: // Active
+                    if (isMyTurn) {
+                        myBoardStatus.textContent = "Active game";
+                        myBoardStatus.className = "status info";
+                        opponentBoardStatus.textContent = "Your turn - Make a shot!";
+                        opponentBoardStatus.className = "status success";
+                    } else {
+                        myBoardStatus.textContent = "Opponent's turn - Waiting for their shot";
+                        myBoardStatus.className = "status info";
+                        opponentBoardStatus.textContent = "Waiting for opponent's move";
+                        opponentBoardStatus.className = "status info";
+                    }
+                    break;
+                    
+                case 3: // Completed
+                    myBoardStatus.textContent = "Game completed";
+                    myBoardStatus.className = "status info";
+                    opponentBoardStatus.textContent = "Game completed";
+                    opponentBoardStatus.className = "status info";
+                    break;
+                    
+                case 4: // Cancelled
+                    myBoardStatus.textContent = "Game cancelled";
+                    myBoardStatus.className = "status error";
+                    opponentBoardStatus.textContent = "Game cancelled";
+                    opponentBoardStatus.className = "status error";
+                    break;
+            }
+        }
+        
+        // Helper to get state string
+        function getStateString(state) {
+            const states = ["Created", "Setup", "Active", "Completed", "Cancelled"];
+            return states[state] || "Unknown";
+        }
+        
+        // Log event to UI
+        function logEvent(message, type = "info") {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            eventLogs.prepend(logEntry);
+            
+            // Keep log size reasonable
+            if (eventLogs.children.length > 100) {
+                eventLogs.removeChild(eventLogs.lastChild);
+            }
+            
+            console.log(`[${timestamp}] ${message}`);
+        }
+        
+        // Initialize board rendering
+        function initializeBoards() {
+            renderBoard(myBoardElement, null);
+            renderBoard(opponentBoardElement, null, true);
+        }
+        
+        // Setup event handlers
+        connectWalletBtn.addEventListener('click', connectWallet);
+        createGameBtn.addEventListener('click', createGame);
+        joinGameBtn.addEventListener('click', joinGame);
+        randomBoardBtn.addEventListener('click', generateRandomBoardAndCommitment);
+        submitBoardBtn.addEventListener('click', submitBoard);
+        testBoardProofBtn.addEventListener('click', testBoardProof);
+        testShotProofBtn.addEventListener('click', testShotProof);
+        testEndgameProofBtn.addEventListener('click', testEndgameProof);
+        refreshStateBtn.addEventListener('click', refreshGameState);
+        
+        // Initialize the UI
+        initializeBoards();
+    </script>
+</body>
+</html>
