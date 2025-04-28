@@ -1,5 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { backendAPI, GameSession } from '../libs/api/backend-api';
+import { backendAPI } from '../libs/api/backend-api';
+
+// Updated GameSession interface to include winner property
+export interface ExtendedGameSession {
+  sessionId: string;
+  status: string;
+  players: string[];
+  currentTurn: string | null;
+  gameContractAddress?: string;
+  gameId?: string | null;
+  turnStartedAt?: number;
+  createdAt?: number;
+  lastActivityAt?: number;
+  winner?: string; // Added missing winner property
+}
 
 // Game event types
 export type GameEvent = 
@@ -10,7 +24,7 @@ export type GameEvent =
   | { type: 'shot_fired', player: string, x: number, y: number, nextTurn: string, turnStartedAt: number }
   | { type: 'shot_result', player: string, x: number, y: number, isHit: boolean }
   | { type: 'game_over', status: string, winner: string, reason: 'COMPLETED' | 'FORFEIT' | 'TIMEOUT' }
-  | { type: 'session_state', sessionId: string, status: string, players: string[], currentTurn: string | null, gameId: string | null }
+  | { type: 'session_state', sessionId: string, status: string, players: string[], currentTurn: string | null, gameId: string | null, winner?: string }
   | { type: 'chat', sender: string, text: string, timestamp: number }
   | { type: 'pong', timestamp: number }
   | { type: 'error', error: string };
@@ -19,7 +33,7 @@ export type GameEvent =
 export interface GameSessionHook {
   // Session state
   sessionId: string | null;
-  sessionState: GameSession | null;
+  sessionState: ExtendedGameSession | null;
   isConnected: boolean;
   events: GameEvent[];
   error: string | null;
@@ -44,7 +58,7 @@ export interface GameSessionHook {
 export function useGameSession(): GameSessionHook {
   // Session state
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [sessionState, setSessionState] = useState<GameSession | null>(null);
+  const [sessionState, setSessionState] = useState<ExtendedGameSession | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +115,8 @@ export function useGameSession(): GameSessionHook {
               gameId: data.gameId,
               turnStartedAt: data.turnStartedAt,
               createdAt: data.createdAt || Date.now(),
-              lastActivityAt: data.lastActivityAt || Date.now()
+              lastActivityAt: data.lastActivityAt || Date.now(),
+              winner: data.winner // Include winner in the session state
             });
           }
           
@@ -159,7 +174,7 @@ export function useGameSession(): GameSessionHook {
     try {
       const session = await backendAPI.createSession(playerAddress);
       setSessionId(session.sessionId);
-      setSessionState(session);
+      setSessionState(session as ExtendedGameSession);
       
       // Connect to WebSocket for the new session
       connectToSession(session.sessionId, playerAddress);
@@ -248,12 +263,10 @@ export function useGameSession(): GameSessionHook {
   // Clean up WebSocket on unmount
   useEffect(() => {
     return () => {
-      // Close WebSocket
       if (webSocketRef.current) {
         webSocketRef.current.close();
       }
       
-      // Clear heartbeat
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }

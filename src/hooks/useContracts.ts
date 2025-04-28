@@ -6,10 +6,9 @@ import {
   useDisconnect, 
   useChainId,
   useSwitchChain,
-    useWriteContract,
-
+  useWriteContract,
 } from 'wagmi';
-import {megaethTestnet} from 'wagmi/chains'
+import { megaethTestnet } from 'wagmi/chains'
 import { injected } from 'wagmi/connectors';
 import { createPublicClient, decodeEventLog, getContract, http } from 'viem';
 import {
@@ -19,43 +18,10 @@ import {
   MEGAETH_CONFIG
 } from '../libs/contracts/config';
 
-// Interface for contract interaction hook return type
-export interface ContractHook {
-  // Connection state
-  address: `0x${string}` | undefined;
-  isConnected: boolean;
-  isCorrectNetwork: boolean;
-  chainId: number | undefined;
-  
-  // Contract instances
-  getGameContract: (gameAddress: string) => any;
-  
-  // Connection management
-  connectWallet: () => Promise<void>;
-  disconnectWallet: () => void;
-  switchNetwork: () => Promise<void>;
-  
-  // Contract interactions
-  createGame: (opponentAddress: string) => Promise<{gameId: number, gameAddress: string}>;
-  joinGame: (gameId: number) => Promise<void>;
-  submitBoard: (gameAddress: string, boardCommitment: string, zkProof: string) => Promise<void>;
-  makeShot: (gameAddress: string, x: number, y: number) => Promise<void>;
-  submitShotResult: (gameAddress: string, x: number, y: number, isHit: boolean, zkProof: string) => Promise<void>;
-  verifyGameEnd: (gameAddress: string, zkProof: string) => Promise<void>;
-  forfeit: (gameAddress: string) => Promise<void>;
-  
-  // Contract errors
-  error: string | null;
-  clearError: () => void;
-  
-  // Transaction state
-  isPending: boolean;
-}
-
 /**
  * Custom hook for interacting with game contracts using wagmi
  */
-export function useContract(): ContractHook {
+export function useContracts() {
   // Wagmi hooks
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
@@ -63,7 +29,7 @@ export function useContract(): ContractHook {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const publicClient = createPublicClient({
-    chain:megaethTestnet,
+    chain: megaethTestnet,
     transport: http(MEGAETH_CONFIG.rpcUrl)
   });
   
@@ -121,7 +87,7 @@ export function useContract(): ContractHook {
     try {
       return getContract({
         address: gameAddress as `0x${string}`,
-          abi: BATTLESHIP_GAME_ABI,
+        abi: BATTLESHIP_GAME_ABI,
         client: publicClient
       });
     } catch (err) {
@@ -177,7 +143,7 @@ export function useContract(): ContractHook {
       if (!gameCreatedEvent) {
         throw new Error('Game creation failed: Event not found');
       }
-      console.log(gameCreatedEvent, "game created event")
+      
       // Extract game ID and address from event
       const gameId = Number(gameCreatedEvent?.args?.[0]);
       const gameAddress = gameCreatedEvent?.args?.[1] as string;
@@ -399,6 +365,7 @@ export function useContract(): ContractHook {
         address: gameAddress as `0x${string}`,
         abi: BATTLESHIP_GAME_ABI,
         functionName: 'forfeit',
+        args: [],
       });
       
       // Wait for transaction to be mined
