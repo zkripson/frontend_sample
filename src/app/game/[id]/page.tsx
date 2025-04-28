@@ -6,6 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 // Components
 import GameBoard from '../../../components/game/Board';
 import ShipPlacement from '../../../components/game/ShipPlacement';
+// import GameControls from '../../../components/game/GameControls';
+
 
 // Hooks
 import { useContracts } from '../../../hooks/useContracts';
@@ -536,8 +538,25 @@ export default function GamePage() {
             Connect Wallet
           </button>
         </div>
-      ) : (
-        renderGameContent()
+          ) : (
+                   <div className="flex flex-col lg:flex-row gap-6">
+          <div className="lg:w-3/4">
+                         { renderGameContent()}
+                          </div>
+                  <div className="lg:w-1/4">
+            {/* Game Controls */}
+            {/* <GameControls
+              gamePhase={gamePhase}
+              isPlayerTurn={isPlayerTurn}
+              statusMessage={statusMessage}
+              winner={winner}
+              playerAddress={account}
+              opponentAddress={opponent}
+              onForfeit={handleForfeit}
+              isBusy={isMakingShot || isProcessingShot || isSubmittingBoard}
+            /> */}
+          </div>
+        </div>
       )}
     </div>
   );
